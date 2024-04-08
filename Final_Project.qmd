@@ -1,0 +1,62 @@
+---
+title: "334 Final Project"
+author: "Jeffrey Merselis"
+execute: 
+  warning: false
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    theme: darkly
+---
+
+```{r}
+library(tidyverse)
+```
+
+data sets:
+
+Hot Ones: <https://github.com/rfordatascience/tidytuesday/blob/master/data/2023/2023-08-08/readme.md>
+
+NCAA Men's: <https://github.com/rfordatascience/tidytuesday/blob/master/data/2024/2024-03-26/readme.md>
+
+ncaahoopR: <https://github.com/lbenz730/ncaahoopR>
+
+Alone: <https://github.com/rfordatascience/tidytuesday/blob/master/data/2023/2023-01-24/readme.md>
+
+LEGO: <https://github.com/rfordatascience/tidytuesday/tree/master/data/2022/2022-09-06>
+
+Bob Ross: <https://github.com/rfordatascience/tidytuesday/blob/master/data/2023/2023-02-21/readme.md>
+
+# LEGO
+
+```{r}
+inventories <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-09-06/inventories.csv.gz')
+inventory_sets <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-09-06/inventory_sets.csv.gz')
+sets <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-09-06/sets.csv.gz')
+
+view(inventories)
+view(inventory_sets)
+view(sets)
+```
+
+657-2
+
+```{r}
+sets |> filter(set_num == "657-2")
+```
+
+# Bob Ross
+
+```{r}
+bob_ross <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-02-21/bob_ross.csv')
+
+view(bob_ross)
+```
+
+```{r}
+bob_ross |> select(-painting_index, -img_src, -painting_title, -season, -episode, -youtube_src, 
+                   -colors, -color_hex) |>
+  pivot_longer()
+```
+
