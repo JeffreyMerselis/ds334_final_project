@@ -28,12 +28,68 @@ LEGO: <https://github.com/rfordatascience/tidytuesday/tree/master/data/2022/2022
 
 Bob Ross: <https://github.com/rfordatascience/tidytuesday/blob/master/data/2023/2023-02-21/readme.md>
 
+# Hot Ones
+
+```{r}
+episodes <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-08-08/episodes.csv')
+sauces <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-08-08/sauces.csv')
+seasons <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-08-08/seasons.csv')
+
+view(episodes)
+view(sauces)
+view(seasons)
+```
+
+# Men's March Madness
+
+```{r}
+team_results <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-03-26/team-results.csv')
+public_picks <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2024/2024-03-26/public-picks.csv')
+
+view(team_results)
+view(public_picks)
+```
+
+# Alone
+
+```{r}
+survivalists <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/survivalists.csv')
+loadouts <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/loadouts.csv')
+episodes <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/episodes.csv')
+seasons <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/seasons.csv')
+
+view(survivalists)
+view(loadouts)
+view(episodes)
+view(seasons)
+```
+
+```{r}
+winners_df <- survivalists |>
+  filter(result == 1) |>
+  select(-reason_tapped_out, -reason_category) |>
+  arrange(desc(days_lasted))
+
+winners_df
+```
+
+```{r}
+days_avgs <- survivalists |>
+  group_by(season) |>
+  summarise(mean_days = mean(days_lasted), 
+            median_days = median(days_lasted))
+
+season_avgs
+```
+
 # LEGO
 
 ```{r}
 inventories <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-09-06/inventories.csv.gz')
 inventory_sets <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-09-06/inventory_sets.csv.gz')
 sets <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-09-06/sets.csv.gz')
+
+sets <- sets |> filter(num_parts != 0)
 
 view(inventories)
 view(inventory_sets)
@@ -43,7 +99,27 @@ view(sets)
 657-2
 
 ```{r}
-sets |> filter(set_num == "657-2")
+sets |> filter(set_num == "8831-0")
+```
+
+```{r}
+library(shiny)
+```
+
+```{r}
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+      selectInput()
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  
+}
+
+shinyApp(ui, server)
 ```
 
 # Bob Ross
