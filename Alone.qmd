@@ -28,46 +28,73 @@ view(seasons)
 ```
 
 ```{r}
-new_names <- c("Place", "Name", "Age", "Gender", "Home Town", "Days Lasted", "Tap Out Reason", "Team", "Day Linked Up", "Profession")
+winners <- survivalists |>
+  select(name, result) |>
+  mutate(won = if_else(result == TRUE, TRUE == 1, FALSE == 2))
+
+winners_loadouts <- left_join(winners, loadouts, by = c("name" = "name"))
+```
+
+```{r}
+winners_loadouts |>
+  filter(season == 9) |>
+  group_by(item, won)
+  
+```
+
+```{r}
+new_names <- c("Place", "season", "Name", "Age", "Gender", "Home Town", "Days Lasted", "Tap Out Reason", "Team", "Day Linked Up", "Profession")
+
+survivalists_info_df <- survivalists |> 
+      select(result, everything()) |>
+      select(-reason_category, -medically_evacuated, -url) |>
+      unite(location, city, state, country, sep = ", ") |>
+      rename_with(~new_names, everything())
+```
+
+```{r}
+season_info_names <- c("Location", "Country", "Survivors", "Latitude", "Longitude", "Drop off Date")
+
+episode_info_names <- c("Episode Number", "Episode Title", "Air Date", "Overall Episode Number")
 
 ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       selectInput("season", label = "Select a Season:",
-                  choices = unique(seasons$season)
+                  choices = seasons$season |> unique()
       )
     ),
     mainPanel(
-      tableOutput("survivalists_table"),
-      tableOutput("season_info_table"),
-      tableOutput("episodes_table")
+      dataTableOutput("season_info_table"),
+      dataTableOutput("survivalists_table"),
+      dataTableOutput("episodes_table")
     )
   )
 )
 
 server <- function(input, output, session) {
   
-  output$survivalists_table <- renderTable({
-    survivalists |> 
-      select(result, everything()) |>
-      rename(place = result) |>
-      filter(season == input$season) |>
-      mutate(day_linked_up = ifelse(season != 4, "Exclusive to season 4.", day_linked_up)) |>
-      mutate(team = ifelse(season != 4, "Exclusive to season 4.", team)) |>
-      select(-season, -reason_category, -medically_evacuated, -url) |>
-      unite(location, city, state, country, sep = ", ") |>
-      rename_with(~new_names, everything())
-  })
-  
-  output$season_info_table <- renderTable({
+  output$season_info_table <- renderDataTable({
     seasons |>
       filter(season == input$season) |>
-      select(-version, -season)
+      select(-version, -season) |>
+      rename_with(~season_info_names, everything())
   })
   
-  output$episodes_table <- renderTable({
+  output$survivalists_table <- renderDataTable({
+    survivalists_info_df |>
+      filter(season == input$season) |>
+      mutate(`Day Linked Up` = ifelse(season != 4, "Exclusive to season 4.", `Day Linked Up`)) |>
+      mutate(Team = ifelse(season != 4, "Exclusive to season 4.", Team)) |>
+      select(-season)
+  })
+
+  output$episodes_table <- renderDataTable({
     episodes |>
-      filter(seaon == input$season)
+      filter(season == input$season) |>
+      select(-viewers, -version, -season, -quote, -author, -imdb_rating, -n_ratings) |>
+      select(episode, title, air_date, episode_number_overall) |>
+      rename_with(~episode_info_names, everything())
   })
   
 }
