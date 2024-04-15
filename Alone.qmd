@@ -1,0 +1,77 @@
+---
+title: "Alone"
+author: "Jeffrey Merselis"
+execute: 
+  warning: false
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    theme: darkly
+---
+
+```{r}
+library(tidyverse)
+library(shiny)
+```
+
+```{r}
+survivalists <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/survivalists.csv')
+loadouts <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/loadouts.csv')
+episodes <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/episodes.csv')
+seasons <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/seasons.csv')
+
+view(survivalists)
+view(loadouts)
+view(episodes)
+view(seasons)
+```
+
+```{r}
+new_names <- c("Place", "Name", "Age", "Gender", "Home Town", "Days Lasted", "Tap Out Reason", "Team", "Day Linked Up", "Profession")
+
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("season", label = "Select a Season:",
+                  choices = unique(seasons$season)
+      )
+    ),
+    mainPanel(
+      tableOutput("survivalists_table"),
+      tableOutput("season_info_table"),
+      tableOutput("episodes_table")
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  
+  output$survivalists_table <- renderTable({
+    survivalists |> 
+      select(result, everything()) |>
+      rename(place = result) |>
+      filter(season == input$season) |>
+      mutate(day_linked_up = ifelse(season != 4, "Exclusive to season 4.", day_linked_up)) |>
+      mutate(team = ifelse(season != 4, "Exclusive to season 4.", team)) |>
+      select(-season, -reason_category, -medically_evacuated, -url) |>
+      unite(location, city, state, country, sep = ", ") |>
+      rename_with(~new_names, everything())
+  })
+  
+  output$season_info_table <- renderTable({
+    seasons |>
+      filter(season == input$season) |>
+      select(-version, -season)
+  })
+  
+  output$episodes_table <- renderTable({
+    episodes |>
+      filter(seaon == input$season)
+  })
+  
+}
+
+shinyApp(ui, server)
+```
+
