@@ -28,24 +28,34 @@ view(seasons)
 ```
 
 ```{r}
-placing_df <- survivalists |>
-  select(name, result) |>
-  mutate(won = if_else(result == TRUE, TRUE == 1, FALSE == 2))
+# remove winners items from the count, nothing should be >9
+# remove/identify duplicate items (some people bring the same thing twice or more)
 
-results_loadouts <- left_join(placing_df, loadouts, by = c("name" = "name")) 
+placing_df <- survivalists |>
+  unite("name", c(name, season), sep = " s:") |>
+  select(name, result) 
+
+extra_loadouts <- loadouts |>
+  mutate(season_num = season) |>
+  unite("name", c(name, season), sep = " s:") |>
+  mutate(season = season_num) |>
+  select(-season_num)
+
+results_loadouts <- left_join(placing_df, extra_loadouts, by = c("name" = "name")) |>
+  filter(season == 5)
 
 winners_loadouts9 <- results_loadouts |>
-  filter(season == 1) |>
-  filter(won == T) |>
+  filter(season == 5) |>
+  filter(result == 1) |>
   select(item)
 
 losers_loadouts9 <- results_loadouts |>
-  filter(season == 1) |>
-  filter(won == F) |>
+  filter(season == 5) |>
+  filter(result != 1) |>
   select(item)
 
 count_loadout9 <- results_loadouts |>
-  filter(season == 1) |>
+  filter(season == 5) |>
   group_by(item) |>
   summarise(count = n())
 
@@ -58,6 +68,39 @@ losing_items_count <- anti_join(count_loadout9, winners_loadouts9, by = c("item"
   mutate(item = fct_reorder(item, count)) 
 ```
 
+```{r}
+# graph of all seasons winning vs losing items
+
+```
+
+placing_df <- survivalists |>
+  select(name, result) |>
+  mutate(won = if_else(result == TRUE, TRUE == 1, FALSE == 2))
+
+results_loadouts <- left_join(placing_df, loadouts, by = c("name" = "name")) 
+
+winners_loadouts9 <- results_loadouts |>
+  filter(season == 2) |>
+  filter(won == T) |>
+  select(item)
+
+losers_loadouts9 <- results_loadouts |>
+  filter(season == 2) |>
+  filter(won == F) |>
+  select(item)
+
+count_loadout9 <- results_loadouts |>
+  filter(season == 2) |>
+  group_by(item) |>
+  summarise(count = n())
+
+winning_items_count <- inner_join(count_loadout9, winners_loadouts9, by = c("item" = "item")) |>
+  arrange(desc(count)) |>
+  mutate(item = fct_reorder(item, count)) 
+
+losing_items_count <- anti_join(count_loadout9, winners_loadouts9, by = c("item" = "item")) |>
+  arrange(desc(count)) |>
+  mutate(item = fct_reorder(item, count)) 
 ```{r}
 ggplot() +
   geom_segment(data = losing_items_count, 
@@ -136,6 +179,47 @@ server <- function(input, output, session) {
   winners_reactive <- reactive({
     winners_loadouts <- results_loadouts |>
       filter(season == input$season) |>
+      filter(result == 1) |>
+      select(item)
+  })
+  
+  count_reactive <- reactive({
+    count_loadout <- results_loadouts |>
+      filter(season == input$season) |>
+      group_by(item) |>
+      summarise(count = n())
+  })
+  
+  win_count_items_reactive <- reactive({
+    winning_items_count <- inner_join(count_reactive(), winners_reactive(), by = c("item" = "item")) |>
+      arrange(desc(count)) |>
+      mutate(item = fct_reorder(item, count)) 
+  })
+  
+  output$items_plot <- renderPlot({
+    ggplot() +
+      geom_segment(data = win_count_items_reactive(), 
+                   aes(x = item, y = count, xend = item, yend = 0, color = "blue")) +
+      geom_point(data = win_count_items_reactive(), 
+                 aes(x = item, y = count, color = "blue")) + 
+      theme_minimal() +
+      coord_flip() +
+      labs(title = "Number of Contestants Who Also Brought the 'Winning' Items",
+           subtitle = "*Items in Red Were NOT Brought by the Winner",
+           x = "Item",
+           y = "Count") +
+      guides(color = "none")
+  })
+## ITEMS PLOT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+}
+
+shinyApp(ui, server)
+```
+
+winners_reactive <- reactive({
+    winners_loadouts <- results_loadouts |>
+      filter(season == input$season) |>
       filter(won == T) |>
       select(item)
   })
@@ -184,14 +268,6 @@ server <- function(input, output, session) {
            y = "Count") +
       guides(color = "none")
   })
-## ITEMS PLOT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
-}
-
-shinyApp(ui, server)
-```
-
-
 
 
 
