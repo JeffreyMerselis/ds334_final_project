@@ -1,0 +1,53 @@
+---
+title: "final_pres"
+format: revealjs
+---
+
+```{r}
+#| echo: false
+#| output: false
+#| warning: false
+survivalists <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/survivalists.csv')
+loadouts <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/loadouts.csv')
+episodes <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/episodes.csv')
+seasons <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/seasons.csv')
+```
+
+## Data
+
+* Visualize the the winners and loosers of the TV show 'Alone'
+
+* data
+
+* data
+
+## Visual 1
+
+```{r}
+top25 <- survivalists |>
+  filter(days_lasted >= quantile(days_lasted, 0.75))
+
+top25_loadouts <- inner_join(loadouts, top25, by = c("name" = "name")) 
+  # |>
+  # select(name, item) |>
+  # group_by(item) |>
+  # summarise(count = n()) |>
+  # arrange(desc(count)) |>
+  # mutate(item = fct_reorder(item, count)) 
+
+ggplot(top25_loadouts, aes(x = item)) +
+  geom_bar() +
+  labs(title = "Popular Items Among Top Survivors", x = "Item", y = "Count") +
+  theme_minimal(base_size = 25) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Visual 2
+
+```{r}
+ggplot(survivalists, aes(x = age, y = days_lasted)) +
+  geom_point() +
+  labs(title = "age v days", x = "age", y = "days") +
+  theme_minimal()
+```
+

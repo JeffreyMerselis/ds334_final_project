@@ -272,11 +272,57 @@ winners_reactive <- reactive({
 # graphs
 
 ```{r}
+ggplot(survivalists, aes(x = profession)) +
+  geom_bar() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## looks cool but is kinda terible (but looks cool)
+```{r}
+ggplot(loadouts, aes(x = as.factor(season), fill = item)) +
+  geom_bar(position = "dodge") +
+  theme_minimal()
+```
+
+## arrange the right way + not by season? fix later
+```{r}
+ggplot(loadouts, aes(x = item)) +
+  geom_bar() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
 ggplot(survivalists, aes(x = as.factor(season), fill = gender)) +
   geom_bar(position = "dodge") +
   labs(title = "gender", x = "season", y = "count", fill = "gnder") +
   theme_minimal()
 ```
 
+## needs somthings
+```{r}
+ggplot(survivalists, aes(x = age, y = days_lasted)) +
+  geom_point() +
+  labs(title = "age v days", x = "age", y = "days") +
+  theme_minimal()
+```
 
+
+```{r}
+ggplot(episodes, aes(x = air_date, y = viewers)) +
+  geom_line() +
+  labs(title = "viewer over time", x = "date", y = "views in millions") +
+  theme_minimal()
+```
+
+```{r}
+
+```
+
+```{r}
+ggplot(episodes, aes(x = as.factor(season), y = imdb_rating)) +
+  geom_boxplot() +
+  theme_minimal()
+```
 
