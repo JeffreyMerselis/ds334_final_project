@@ -269,6 +269,14 @@ winners_reactive <- reactive({
       guides(color = "none")
   })
 
+# graphs
+
+```{r}
+ggplot(survivalists, aes(x = as.factor(season), fill = gender)) +
+  geom_bar(position = "dodge") +
+  labs(title = "gender", x = "season", y = "count", fill = "gnder") +
+  theme_minimal()
+```
 
 
 
