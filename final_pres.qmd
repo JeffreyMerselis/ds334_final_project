@@ -15,7 +15,7 @@ loadouts <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/t
 episodes <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/episodes.csv')
 seasons <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/seasons.csv')
 
-filtered_season <- 6
+filtered_season <- 5
 ```
 
 ## Data

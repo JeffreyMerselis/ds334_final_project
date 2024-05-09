@@ -1,0 +1,859 @@
+---
+title: "Final Project Report"
+author: "Jeffrey Merselis"
+execute: 
+  warning: false
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    theme: darkly
+---
+
+Final Project GitHub Repository: <https://github.com/JeffreyMerselis/ds334_final_project>
+
+GitHub Blog: <https://jeffreymerselis.github.io/DATA334Blog/>
+
+```{r}
+#| echo: false
+#| output: false
+#| warning: false
+library(tidyverse)
+library(shiny)
+
+survivalists <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/survivalists.csv')
+loadouts <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/loadouts.csv')
+episodes <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/episodes.csv')
+seasons <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/seasons.csv')
+```
+
+This report provides a summary of the findings from a Shiny app that visualizes data from the TV show "Alone." The app includes three distinct plots that examine the relationship between contestants' ages and their survival duration on the show; the loadouts that contestants brought and how these contributed to  their success; and how the performance of contestants in each placement compared with the average for that placement across the series. 
+
+An analysis of these plots reveals that certain items, such as sleeping bags, axes, firestarters, and pots, consistently contribute to success. Paracord and bows and arrows began gaining traction in later seasons as contestants refined their loadouts, leading to greater uniformity across all 10 survivalists.
+
+Initially, I expected age to be a significant factor in determining a contestant's success on the show, but the data indicates otherwise. There's a wide range of ages among both successful and unsuccessful contestants, suggesting that age has a minimal impact on outcomes.
+
+Another observation is the steady increase in the average number of days participants spend surviving in later seasons. Early seasons required fewer days to secure a victory, while the final three seasons demonstrated much longer survival durations needed for success. 
+
+# Introduction
+
+In this project, I examined three datasets from the TV show "Alone." My goal was to explore the successes and failures of contestants on the show to identify the factors that made some contestants more successful than others at surviving for long periods in the wilderness alone. My first step was to analyze the items contestants chose to bring with them, aiming to discover which items were most and least important in relation for long periods of survival. I wanted to understand if there was a pattern in the gear used by winners versus losers, and if there were any underrated or overrated items that less or more successful survivalists overlooked. I also wanted to examine how certain characteristics, like age, might affect survival duration. I chose age because I thought it could be a key factor in success. Additionally, I tracked each contestant's performance across the season compared to the overall series average. My assumption was that contestants in later seasons might learn from previous ones, improving their outcomes.
+
+To create the graphs for the Shiny app, I used three datasets. The first was "Survivalists," which contained information on each contestant throughout the nine seasons, including age, gender, hometown, days lasted, reason for leaving (if they didn't win), and profession. This dataset had 94 entries across 16 columns, with all seasons having 10 contestants except for season four, which had 14 contestants in teams of two. The second dataset, "Loadout," detailed the 10 items each of the 94 contestants brought with them during their time on the show. This dataset had 940 entries with six columns. The final dataset, "Seasons," contained brief information about each season, such as the filming location, country, latitude and longitude of the drop-off points, start dates, and the number of contestants in each season. There was a fourth dataset, "Episodes," which I didn't use, that contained information about each episode, including viewership, IMDB ratings, titles, premiere dates, and the episode's order within the season and overall series. Although this dataset wasn't used, it could be a valuable resource for additional analysis in the future.
+
+# Winning Loadouts
+
+In the first season, key survival items included sleeping bags, pots, fire starters, and axes. Out of ten participants, nine brought knives, including the winner. Five participants had saws, and the winner was among them. Other items like paracord, bow and arrows, tarps, and rations were more commonly seen among those who lost. The winning survivalist was the only person to bring wire, possibly as a substitute for rope or paracord.
+
+```{r}
+#| echo: false
+filtered_season <- 1
+
+winner <- survivalists |>
+  filter(season == filtered_season, result == 1) |>
+  select(name) |> 
+  pull()
+
+winner_items <- loadouts |>
+  filter(season == filtered_season, name == winner) |>
+  select(item) |>
+  pull()
+
+unique_loadouts <- loadouts |>
+  filter(season == filtered_season) |>
+  distinct(name, item)
+
+other_items_count <- unique_loadouts |>
+  group_by(item) |>
+  summarize(count = n()) |>
+  mutate(brought_by_winner = item %in% winner_items, 
+         color = ifelse(brought_by_winner, "blue", "red")) |>
+  arrange(desc(count)) |>
+  mutate(item = fct_reorder(item, count)) 
+
+ggplot(other_items_count) +
+  geom_segment(aes(x = item, y = count, xend = item, yend = 0, color = brought_by_winner)) +
+  geom_point(aes(x = item, y = count, color = brought_by_winner)) +
+  scale_color_manual(values = c("TRUE" = "blue", "FALSE" = "red")) + 
+  theme_minimal() +
+  scale_y_continuous(breaks = seq(0, max(other_items_count$count), by = 2)) + #GPT
+  coord_flip() +
+  labs(title = "Season 1",
+       x = "Item",
+       y = "Count",
+       color = "Brought by Winner")
+```
+
+In season two, popular items remained consistent, with all participants bringing sleeping bags, fire starters, saws, and axes. Notably, nine out of ten participants brought rations, indicating a reliance on pre-packaged food. Knives remained common, with nine participants carrying them, including the winner. Gillnets also gained popularity, with nine participants using them compared to just four in season one, perhaps because the season one winner had used one. Wire and rope, however, were mainly used by participants who didn't win, suggesting they might not be as crucial for success.
+
+```{r}
+#| echo: false
+filtered_season <- 2
+
+winner <- survivalists |>
+  filter(season == filtered_season, result == 1) |>
+  select(name) |> 
+  pull()
+
+winner_items <- loadouts |>
+  filter(season == filtered_season, name == winner) |>
+  select(item) |>
+  pull()
+
+unique_loadouts <- loadouts |>
+  filter(season == filtered_season) |>
+  distinct(name, item)
+
+other_items_count <- unique_loadouts |>
+  group_by(item) |>
+  summarize(count = n()) |>
+  mutate(brought_by_winner = item %in% winner_items, 
+         color = ifelse(brought_by_winner, "blue", "red")) |>
+  arrange(desc(count)) |>
+  mutate(item = fct_reorder(item, count)) 
+
+ggplot(other_items_count) +
+  geom_segment(aes(x = item, y = count, xend = item, yend = 0, color = brought_by_winner)) +
+  geom_point(aes(x = item, y = count, color = brought_by_winner)) +
+  scale_color_manual(values = c("TRUE" = "blue", "FALSE" = "red")) + 
+  theme_minimal() +
+  scale_y_continuous(breaks = seq(0, max(other_items_count$count), by = 2)) + #GPT
+  coord_flip() +
+  labs(title = "Season 2",
+       x = "Item",
+       y = "Count",
+       color = "Brought by Winner")
+```
+
+Season three marked a significant shift in gear trends. All participants brought sleeping bags, fire starters, fishing gear, and pots. Paracord saw a dramatic increase in usage, with nine people carrying it, including the winner. Interestingly, knives became less successful, with all nine knife carriers losing. This was a departure from the first two seasons, where knives were used by winners. The use of axes also decreased, with only seven participants carrying them. This season also introduced a new item, the sharpening stone. Only the winner used a sharpening stone, and this was the only time anyone would bring a sharpening stone.
+
+```{r}
+#| echo: false
+filtered_season <- 3
+
+winner <- survivalists |>
+  filter(season == filtered_season, result == 1) |>
+  select(name) |> 
+  pull()
+
+winner_items <- loadouts |>
+  filter(season == filtered_season, name == winner) |>
+  select(item) |>
+  pull()
+
+unique_loadouts <- loadouts |>
+  filter(season == filtered_season) |>
+  distinct(name, item)
+
+other_items_count <- unique_loadouts |>
+  group_by(item) |>
+  summarize(count = n()) |>
+  mutate(brought_by_winner = item %in% winner_items, 
+         color = ifelse(brought_by_winner, "blue", "red")) |>
+  arrange(desc(count)) |>
+  mutate(item = fct_reorder(item, count)) 
+
+ggplot(other_items_count) +
+  geom_segment(aes(x = item, y = count, xend = item, yend = 0, color = brought_by_winner)) +
+  geom_point(aes(x = item, y = count, color = brought_by_winner)) +
+  scale_color_manual(values = c("TRUE" = "blue", "FALSE" = "red")) + 
+  theme_minimal() +
+  scale_y_continuous(breaks = seq(0, max(other_items_count$count), by = 2)) + #GPT
+  coord_flip() +
+  labs(title = "Season 3",
+       x = "Item",
+       y = "Count",
+       color = "Brought by Winner")
+```
+
+In season four, the competition format shifted to teams of two. The winning team's items were differnt then the past three seasons but very consistent with all other teams in season four. Sleeping bags saw a significant drop in popularity, with only one out of seven teams bringing them, a decline from previous seasons. Notably, knives were absent from the winning team's equipment, with multitools being more favored. The consistent presence of pots among winning teams indicates their importance for cooking and boiling water.
+
+```{r}
+#| echo: false
+filtered_season <- 4
+
+winner <- survivalists |>
+  filter(season == filtered_season, result == 1) |>
+  select(name) |> 
+  pull()
+
+winner_items <- loadouts |>
+  filter(season == filtered_season, name == winner) |>
+  select(item) |>
+  pull()
+
+unique_loadouts <- loadouts |>
+  filter(season == filtered_season) |>
+  distinct(name, item)
+
+other_items_count <- unique_loadouts |>
+  group_by(item) |>
+  summarize(count = n()) |>
+  mutate(brought_by_winner = item %in% winner_items, 
+         color = ifelse(brought_by_winner, "blue", "red")) |>
+  arrange(desc(count)) |>
+  mutate(item = fct_reorder(item, count)) 
+
+ggplot(other_items_count) +
+  geom_segment(aes(x = item, y = count, xend = item, yend = 0, color = brought_by_winner)) +
+  geom_point(aes(x = item, y = count, color = brought_by_winner)) +
+  scale_color_manual(values = c("TRUE" = "blue", "FALSE" = "red")) + 
+  theme_minimal() +
+  scale_y_continuous(breaks = seq(0, max(other_items_count$count), by = 2)) + #GPT
+  coord_flip() +
+  labs(title = "Season 4",
+       x = "Item",
+       y = "Count",
+       color = "Brought by Winner")
+```
+
+Season five saw a return to individual competition, with sleeping bags and fire starters regaining popularity. However, the winning kit differed from past trends, with the winner choosing not to bring fishing gear, a notable divergence from the norm. Despite a decrease in axes, the winner included one in their gear, reinforcing its importance for success This season also saw a drop in multitools and knives, suggesting that competitors might be exploring alternative tools and realizing axes can substitute well for knives. 
+
+```{r}
+#| echo: false
+filtered_season <- 5
+
+winner <- survivalists |>
+  filter(season == filtered_season, result == 1) |>
+  select(name) |> 
+  pull()
+
+winner_items <- loadouts |>
+  filter(season == filtered_season, name == winner) |>
+  select(item) |>
+  pull()
+
+unique_loadouts <- loadouts |>
+  filter(season == filtered_season) |>
+  distinct(name, item)
+
+other_items_count <- unique_loadouts |>
+  group_by(item) |>
+  summarize(count = n()) |>
+  mutate(brought_by_winner = item %in% winner_items, 
+         color = ifelse(brought_by_winner, "blue", "red")) |>
+  arrange(desc(count)) |>
+  mutate(item = fct_reorder(item, count)) 
+
+ggplot(other_items_count) +
+  geom_segment(aes(x = item, y = count, xend = item, yend = 0, color = brought_by_winner)) +
+  geom_point(aes(x = item, y = count, color = brought_by_winner)) +
+  scale_color_manual(values = c("TRUE" = "blue", "FALSE" = "red")) + 
+  theme_minimal() +
+  scale_y_continuous(breaks = seq(0, max(other_items_count$count), by = 2)) + #GPT
+  coord_flip() +
+  labs(title = "Season 5",
+       x = "Item",
+       y = "Count",
+       color = "Brought by Winner")
+```
+
+Season six stayed consistent in some ways, with all participants bringing sleeping bags and fishing gear. However the winning contestant didn't carry a pot, a first in the competition's history. Paracord and bows and arrows were among the top items, with the winning contestant using a bow and arrow. This season also saw a decline in multitools and tarps, suggesting that participants were leaning toward more specialized equipment.
+
+```{r}
+#| echo: false
+filtered_season <- 6
+
+winner <- survivalists |>
+  filter(season == filtered_season, result == 1) |>
+  select(name) |> 
+  pull()
+
+winner_items <- loadouts |>
+  filter(season == filtered_season, name == winner) |>
+  select(item) |>
+  pull()
+
+unique_loadouts <- loadouts |>
+  filter(season == filtered_season) |>
+  distinct(name, item)
+
+other_items_count <- unique_loadouts |>
+  group_by(item) |>
+  summarize(count = n()) |>
+  mutate(brought_by_winner = item %in% winner_items, 
+         color = ifelse(brought_by_winner, "blue", "red")) |>
+  arrange(desc(count)) |>
+  mutate(item = fct_reorder(item, count)) 
+
+ggplot(other_items_count) +
+  geom_segment(aes(x = item, y = count, xend = item, yend = 0, color = brought_by_winner)) +
+  geom_point(aes(x = item, y = count, color = brought_by_winner)) +
+  scale_color_manual(values = c("TRUE" = "blue", "FALSE" = "red")) + 
+  theme_minimal() +
+  scale_y_continuous(breaks = seq(0, max(other_items_count$count), by = 2)) + #GPT
+  coord_flip() +
+  labs(title = "Season 6",
+       x = "Item",
+       y = "Count",
+       color = "Brought by Winner")
+```
+
+Season seven continued the trend of fire-starters and axes being popular. Bows and arrows kept gaining traction, with the winner using them again, reinforcing their growing importance. Gillnets seemed to have officially fallen out of popular use. Only two participants brought them, both of whom lost. Rations also saw a decline, suggesting that contestants were becoming more self-reliant in finding food due to longer times spent surviving.
+
+```{r}
+#| echo: false
+filtered_season <- 7
+
+winner <- survivalists |>
+  filter(season == filtered_season, result == 1) |>
+  select(name) |> 
+  pull()
+
+winner_items <- loadouts |>
+  filter(season == filtered_season, name == winner) |>
+  select(item) |>
+  pull()
+
+unique_loadouts <- loadouts |>
+  filter(season == filtered_season) |>
+  distinct(name, item)
+
+other_items_count <- unique_loadouts |>
+  group_by(item) |>
+  summarize(count = n()) |>
+  mutate(brought_by_winner = item %in% winner_items, 
+         color = ifelse(brought_by_winner, "blue", "red")) |>
+  arrange(desc(count)) |>
+  mutate(item = fct_reorder(item, count)) 
+
+ggplot(other_items_count) +
+  geom_segment(aes(x = item, y = count, xend = item, yend = 0, color = brought_by_winner)) +
+  geom_point(aes(x = item, y = count, color = brought_by_winner)) +
+  scale_color_manual(values = c("TRUE" = "blue", "FALSE" = "red")) + 
+  theme_minimal() +
+  scale_y_continuous(breaks = seq(0, max(other_items_count$count), by = 2)) + #GPT
+  coord_flip() +
+  labs(title = "Season 7",
+       x = "Item",
+       y = "Count",
+       color = "Brought by Winner")
+```
+
+Season eight was the first season where the winner's loadout contained all ten of the most popular items, indicating a trend toward perfecting gear combinations. Sleeping bags, saws, pots, and fishing gear remained among the top items, with all ten participants choosing them. Bows and arrows cemented themselves as a new key item, with ten people bringing them. This consistency in item choice suggests that participants were refining their strategies based on past seasons.
+
+```{r}
+#| echo: false
+filtered_season <- 8
+
+winner <- survivalists |>
+  filter(season == filtered_season, result == 1) |>
+  select(name) |> 
+  pull()
+
+winner_items <- loadouts |>
+  filter(season == filtered_season, name == winner) |>
+  select(item) |>
+  pull()
+
+unique_loadouts <- loadouts |>
+  filter(season == filtered_season) |>
+  distinct(name, item)
+
+other_items_count <- unique_loadouts |>
+  group_by(item) |>
+  summarize(count = n()) |>
+  mutate(brought_by_winner = item %in% winner_items, 
+         color = ifelse(brought_by_winner, "blue", "red")) |>
+  arrange(desc(count)) |>
+  mutate(item = fct_reorder(item, count)) 
+
+ggplot(other_items_count) +
+  geom_segment(aes(x = item, y = count, xend = item, yend = 0, color = brought_by_winner)) +
+  geom_point(aes(x = item, y = count, color = brought_by_winner)) +
+  scale_color_manual(values = c("TRUE" = "blue", "FALSE" = "red")) + 
+  theme_minimal() +
+  scale_y_continuous(breaks = seq(0, max(other_items_count$count), by = 2)) + #GPT
+  coord_flip() +
+  labs(title = "Season 8",
+       x = "Item",
+       y = "Count",
+       color = "Brought by Winner")
+```
+
+In season nine, the ten most popular items were all in the winner's inventory again, continuing the trend from season eight. This alignment with popular choices suggests that participants were learning from past experiences and adapting their gear accordingly. The use of knives continued to decrease, with only two participants bringing them, neither of whom won. Additionally, the introduction of salt by two participants marked a surprising but unsuccessful new addition to survivalists gear selection.
+
+```{r}
+#| echo: false
+filtered_season <- 9
+
+winner <- survivalists |>
+  filter(season == filtered_season, result == 1) |>
+  select(name) |> 
+  pull()
+
+winner_items <- loadouts |>
+  filter(season == filtered_season, name == winner) |>
+  select(item) |>
+  pull()
+
+unique_loadouts <- loadouts |>
+  filter(season == filtered_season) |>
+  distinct(name, item)
+
+other_items_count <- unique_loadouts |>
+  group_by(item) |>
+  summarize(count = n()) |>
+  mutate(brought_by_winner = item %in% winner_items, 
+         color = ifelse(brought_by_winner, "blue", "red")) |>
+  arrange(desc(count)) |>
+  mutate(item = fct_reorder(item, count)) 
+
+ggplot(other_items_count) +
+  geom_segment(aes(x = item, y = count, xend = item, yend = 0, color = brought_by_winner)) +
+  geom_point(aes(x = item, y = count, color = brought_by_winner)) +
+  scale_color_manual(values = c("TRUE" = "blue", "FALSE" = "red")) + 
+  theme_minimal() +
+  scale_y_continuous(breaks = seq(0, max(other_items_count$count), by = 2)) + #GPT
+  coord_flip() +
+  labs(title = "Season 9",
+       x = "Item",
+       y = "Count",
+       color = "Brought by Winner")
+```
+
+# Days Survived, and Age
+
+The plot depicting the number of days contestants lasted is much simpler than the loadout plot. And since it connects so well with the age vs. days lasted plot, I'll talk about both the at once. 
+
+In my app in the Age vs. Days tab, I have two plots: one showing data from a specific season, and another showing every contestant who has appeared on the show, indicating whether they won or lost, their age, and the number of days they lasted. No one lasted more than a year, and the longest duration recorded was 100 days. It's worth noting that the person who came in second place in that season lasted considerably fewer days than the winner, which I'll need to further investigate to understand the context behind the significant difference. I'll provide more details about which season this was when we reach that point in the discussion.
+
+```{r}
+#| echo: false
+days_df <- survivalists |>
+  mutate(won = ifelse(result == 1, TRUE, FALSE)) |>
+  select(days_lasted, age, won)
+
+ggplot(days_df, aes(x = days_lasted, y = age, color = won)) +
+  geom_point(size = 3) + 
+  labs(
+    title = "Age vs. Days",
+    x = "Age",
+    y = "Days Lasted",
+    color = "Won"
+  ) +
+  scale_color_manual(values = c("red", "blue")) +  
+  theme_minimal() 
+```
+
+The first season had some of the shortest durations on record, with every contestant falling below the series average for days lasted. In fact, the person who came in 10th place lasted less than one day, and it wasn't until the 6th place finisher that anyone managed to stay beyond ten. On average, only one contestant per season stays for fewer than ten days, with the ninth place contestant lasting about ten days. The age distribution for this season had a wide range (we will see this is very normal), from 20 to nearly 50 years old. The youngest contestant, who was about 23 years old, surprisingly came in second place, lasting over 50 days. The winner of season one was 40 years old, placing them at the higher end of the age spectrum (this season). The winner's 55-day run, while respectable, still fell well below the average for first-place contestants across all seasons. If we look at the static plot, we can see this is actually the least about of days anyone ever needed to win. Many losers in future seasons will spend many more then 55 days in the wild. 
+
+```{r}
+#| echo: false
+
+filtered_season <- 1
+
+days_df <- survivalists |>
+  filter(season == filtered_season) |>
+  mutate(won = ifelse(result == 1, TRUE, FALSE)) |>
+  select(days_lasted, age, won)
+
+ggplot(days_df, aes(x = days_lasted, y = age, color = won)) +
+  geom_point(size = 3) + 
+  labs(
+    title = "Age vs. Days Season 1",
+    x = "Age",
+    y = "Days Lasted",
+    color = "Won"
+  ) +
+  scale_color_manual(values = c("red", "blue")) +  
+  theme_minimal() 
+
+season_days <- survivalists |>
+  filter(season == filtered_season)
+
+average_days <- survivalists |>
+  group_by(result) |>
+  summarize(average_days_lasted = mean(days_lasted))
+
+ggplot() +
+  geom_line(data = season_days, aes(x = result, y = days_lasted), 
+            color = "blue", size = 1) +
+  geom_point(data = season_days, aes(x = result, y = days_lasted), 
+             color = "blue", size = 2.5) + 
+  geom_line(data = average_days, aes(x = result, y = average_days_lasted), 
+            color = "red", size = 1) +
+  geom_point(data = average_days, aes(x = result, y = average_days_lasted), 
+             color = "red", size = 2.5) +
+  labs(
+    title = "Average Days Series vs Season Season 1",
+    x = "Placement",
+    y = "Days Lasted") +
+  theme_minimal()
+```
+
+In season two, the second oldest contestant emerged as the winner, at 50 years old, he was 10 years younger than the oldest contestant, and almost double the age of the youngest. Interestingly, the youngest and oldest contestants had identical outcomes: they both placed the same and lasted the same number of days (21). The age distribution in this season ranged from about 25 years old on the lower end to 55 years old on the higher end, with most contestants falling between 35 and 45 years old. Regarding days lasted, season two was similar to season one, with only two placements above the series average: fourth and fifth. Fifth place was just barely above the average, almost indistinguishable from it. In terms of contestant performance, the top four places; first through fourth were relatively close, although still under the series average. The gap, however, was smaller compared to season one, indicating a growing competition. Season two also saw a slower rate of early eliminations compared to season one. This time, only three people were eliminated in under 10 days. The winner lasted more than 60 days. Overall, season two presented a more stable competition, with a reduced gap between the top finishers and fewer early eliminations. The wide age range and the fact that the oldest and youngest contestants had similar results is the start of a trend we will see that suggest age has much less impact on results then I would have expected. 
+
+```{r}
+#| echo: false
+
+filtered_season <- 2
+
+days_df <- survivalists |>
+  filter(season == filtered_season) |>
+  mutate(won = ifelse(result == 1, TRUE, FALSE)) |>
+  select(days_lasted, age, won)
+
+ggplot(days_df, aes(x = days_lasted, y = age, color = won)) +
+  geom_point(size = 3) + 
+  labs(
+    title = "Age vs. Days Season 2",
+    x = "Age",
+    y = "Days Lasted",
+    color = "Won"
+  ) +
+  scale_color_manual(values = c("red", "blue")) +  
+  theme_minimal() 
+
+season_days <- survivalists |>
+  filter(season == filtered_season)
+
+average_days <- survivalists |>
+  group_by(result) |>
+  summarize(average_days_lasted = mean(days_lasted))
+
+ggplot() +
+  geom_line(data = season_days, aes(x = result, y = days_lasted), 
+            color = "blue", size = 1) +
+  geom_point(data = season_days, aes(x = result, y = days_lasted), 
+             color = "blue", size = 2.5) + 
+  geom_line(data = average_days, aes(x = result, y = average_days_lasted), 
+            color = "red", size = 1) +
+  geom_point(data = average_days, aes(x = result, y = average_days_lasted), 
+             color = "red", size = 2.5) +
+  labs(
+    title = "Average Days Series vs Season Season 2",
+    x = "Placement",
+    y = "Days Lasted") +
+  theme_minimal()
+```
+
+In season three, the days survived by contestants showed a noticeable increase once you get past ninth place. From eighth place and up, survival times were above the series average. Notably, there was a substantial gap between the series average and the survival time of the fifth-place finisher in season three. However, from fifth place onward, the gaps narrowed, agiain indicating a tighter competition among the top finishers. Had anyone in the top five of season three been in seasons one or two, they would have easily won. The top spot in season three went to a contestant who survived for 80 days, falling within the 35-40 age range. Overall, the age distribution this season continued to align with the pattern observed in earlier seasons. Most contestants were between 30 and 45 years old, with one outlier typically above 50 and another below 25. These outliers usually placed in the middle, like this season. Generally, however, the age distribution reflects a random pattern.
+
+```{r}
+#| echo: false
+
+filtered_season <- 3
+
+days_df <- survivalists |>
+  filter(season == filtered_season) |>
+  mutate(won = ifelse(result == 1, TRUE, FALSE)) |>
+  select(days_lasted, age, won)
+
+ggplot(days_df, aes(x = days_lasted, y = age, color = won)) +
+  geom_point(size = 3) + 
+  labs(
+    title = "Age vs. Days Season 3",
+    x = "Age",
+    y = "Days Lasted",
+    color = "Won"
+  ) +
+  scale_color_manual(values = c("red", "blue")) +  
+  theme_minimal() 
+
+season_days <- survivalists |>
+  filter(season == filtered_season)
+
+average_days <- survivalists |>
+  group_by(result) |>
+  summarize(average_days_lasted = mean(days_lasted))
+
+ggplot() +
+  geom_line(data = season_days, aes(x = result, y = days_lasted), 
+            color = "blue", size = 1) +
+  geom_point(data = season_days, aes(x = result, y = days_lasted), 
+             color = "blue", size = 2.5) + 
+  geom_line(data = average_days, aes(x = result, y = average_days_lasted), 
+            color = "red", size = 1) +
+  geom_point(data = average_days, aes(x = result, y = average_days_lasted), 
+             color = "red", size = 2.5) +
+  labs(
+    title = "Average Days Series vs Season Season 3",
+    x = "Placement",
+    y = "Days Lasted") +
+  theme_minimal()
+```
+
+Season four was the duo season, featuring 14 contestants divided into seven teams. The average days lasted in this season dropped back below the series average, except for the second-place team, which lasted about two or three days longer than the series average. The winning team’s duration was close to the series average, just slightly above at around 75 days. In this season, the three lowest-placing teams were all eliminated in under 10 days, indicating a notable drop in performance among the lower-ranked contestants. This happens only in two other seasons one and five. The fourth place team was also eliminated relatively early, under 20 days. While the lower placements showed a decline in survival times, the top-performing teams were still competitive, with the winning team surpassing the series average. This season also has the two youngest contestants to appear on the show, both of whom lasted less than five days. 
+
+```{r}
+#| echo: false
+
+filtered_season <- 4
+
+days_df <- survivalists |>
+  filter(season == filtered_season) |>
+  mutate(won = ifelse(result == 1, TRUE, FALSE)) |>
+  select(days_lasted, age, won)
+
+ggplot(days_df, aes(x = days_lasted, y = age, color = won)) +
+  geom_point(size = 3) + 
+  labs(
+    title = "Age vs. Days Season 4",
+    x = "Age",
+    y = "Days Lasted",
+    color = "Won"
+  ) +
+  scale_color_manual(values = c("red", "blue")) +  
+  theme_minimal() 
+
+season_days <- survivalists |>
+  filter(season == filtered_season)
+
+average_days <- survivalists |>
+  group_by(result) |>
+  summarize(average_days_lasted = mean(days_lasted))
+
+ggplot() +
+  geom_line(data = season_days, aes(x = result, y = days_lasted), 
+            color = "blue", size = 1) +
+  geom_point(data = season_days, aes(x = result, y = days_lasted), 
+             color = "blue", size = 2.5) + 
+  geom_line(data = average_days, aes(x = result, y = average_days_lasted), 
+            color = "red", size = 1) +
+  geom_point(data = average_days, aes(x = result, y = average_days_lasted), 
+             color = "red", size = 2.5) +
+  labs(
+    title = "Average Days Series vs Season Season 4",
+    x = "Placement",
+    y = "Days Lasted") +
+  theme_minimal()
+```
+
+Season five marked a significant first, as it featured the youngest winner yet. This winner, aged about 24 years old and lasted exactly 60 days. They were also the same age as the ninth place contestant who lasted less then ten days. Looking at the overall season average for days lasted, there's a slight fluctuation. The season started with lower durations, then rose, only to fall again toward the end. Once again, we saw a familiar pattern of early eliminations, with three contestants being eliminated within the first 10 days. This trend suggests there may be some weaker contestants who either struggle or get injured early on. Including reasons for elimination could add depth to this analysis, but for now, it's clear that there's always a group of three or four that doesn't last long.From sixth to fifth place, the survival times were just above the series average, by one or two days at most. However, in the final four, the durations dropped back below the average, with the winner lasting 60 days, which is 15 days below the average. Despite this, the winner's accomplishment is noteworthy given they are the youngest to ever win. The oldest contestant this season was 50 years old, more than double the age of the winner.
+
+Looking at the age range, it seems age might not be as significant a factor in winning as I expected. The winners in the nine seasons so far span almost 30 years, from 24 to 50, suggesting that success on this show is not constrained by age. Younger survivalists tend to do worse if they are under 25, but there are also very few of them compared to the majority age range of 30 to 50. 
+
+```{r}
+#| echo: false
+
+filtered_season <- 5
+
+days_df <- survivalists |>
+  filter(season == filtered_season) |>
+  mutate(won = ifelse(result == 1, TRUE, FALSE)) |>
+  select(days_lasted, age, won)
+
+ggplot(days_df, aes(x = days_lasted, y = age, color = won)) +
+  geom_point(size = 3) + 
+  labs(
+    title = "Age vs. Days Season 5",
+    x = "Age",
+    y = "Days Lasted",
+    color = "Won"
+  ) +
+  scale_color_manual(values = c("red", "blue")) +  
+  theme_minimal() 
+
+season_days <- survivalists |>
+  filter(season == filtered_season)
+
+average_days <- survivalists |>
+  group_by(result) |>
+  summarize(average_days_lasted = mean(days_lasted))
+
+ggplot() +
+  geom_line(data = season_days, aes(x = result, y = days_lasted), 
+            color = "blue", size = 1) +
+  geom_point(data = season_days, aes(x = result, y = days_lasted), 
+             color = "blue", size = 2.5) + 
+  geom_line(data = average_days, aes(x = result, y = average_days_lasted), 
+            color = "red", size = 1) +
+  geom_point(data = average_days, aes(x = result, y = average_days_lasted), 
+             color = "red", size = 2.5) +
+  labs(
+    title = "Average Days Series vs Season Season 5",
+    x = "Placement",
+    y = "Days Lasted") +
+  theme_minimal()
+```
+
+Season six was a relatively younger season, with only one contestant over the age of 45. This contestant, who was 55 years old, came in last place. All other participants were under 45 years old, with the winner being 35, the second youngest in the group. Despite the younger demographics, the season overall recorded survival times higher than the series average. The middle-range placements from sixth to third place exceeded the series average by a significant margin, while the top two spots, were only slightly above the average. In contrast, the tenth- and ninth-place contestants were eliminated quickly, both lasting fewer than 10 days. This follows the trend of early eliminations being common for lower placements. The winner of season six survived just under 80 days, reflecting the overall higher survival rates in later seasons. 
+
+```{r}
+#| echo: false
+
+filtered_season <- 6
+
+days_df <- survivalists |>
+  filter(season == filtered_season) |>
+  mutate(won = ifelse(result == 1, TRUE, FALSE)) |>
+  select(days_lasted, age, won)
+
+ggplot(days_df, aes(x = days_lasted, y = age, color = won)) +
+  geom_point(size = 3) + 
+  labs(
+    title = "Age vs. Days Season 6",
+    x = "Age",
+    y = "Days Lasted",
+    color = "Won"
+  ) +
+  scale_color_manual(values = c("red", "blue")) +  
+  theme_minimal() 
+
+season_days <- survivalists |>
+  filter(season == filtered_season)
+
+average_days <- survivalists |>
+  group_by(result) |>
+  summarize(average_days_lasted = mean(days_lasted))
+
+ggplot() +
+  geom_line(data = season_days, aes(x = result, y = days_lasted), 
+            color = "blue", size = 1) +
+  geom_point(data = season_days, aes(x = result, y = days_lasted), 
+             color = "blue", size = 2.5) + 
+  geom_line(data = average_days, aes(x = result, y = average_days_lasted), 
+            color = "red", size = 1) +
+  geom_point(data = average_days, aes(x = result, y = average_days_lasted), 
+             color = "red", size = 2.5) +
+  labs(
+    title = "Average Days Series vs Season Season 6",
+    x = "Placement",
+    y = "Days Lasted") +
+  theme_minimal()
+```
+
+Season seven holds the record for the longest survival on the show, with one contestant enduring 100 days. This winner, who was just under 50 years old, became the second oldest to win the competition, and was the oldest in season seven. What's interesting is that the second-place finisher in season seven also had an impressive run, lasting long enough to have won in any other season. This individual, one of the younger contestants, was about 33 years old. The longevity of these top contestants made this season notable for having some of the longest survival times across all placements. Given the extended survival times, it's no surprise that the entire season was above the series average. Even the earliest eliminations lasted a few days longer than usual. The gap between first place and the series average for first-place winners was significant, from 75 to 100 days. As you move down the list, from sixth to tenth place, the margins became more narrow, but still remained above the series average. 
+
+```{r}
+#| echo: false
+
+filtered_season <- 7
+
+days_df <- survivalists |>
+  filter(season == filtered_season) |>
+  mutate(won = ifelse(result == 1, TRUE, FALSE)) |>
+  select(days_lasted, age, won)
+
+ggplot(days_df, aes(x = days_lasted, y = age, color = won)) +
+  geom_point(size = 3) + 
+  labs(
+    title = "Age vs. Days Season 7",
+    x = "Age",
+    y = "Days Lasted",
+    color = "Won"
+  ) +
+  scale_color_manual(values = c("red", "blue")) +  
+  theme_minimal() 
+
+season_days <- survivalists |>
+  filter(season == filtered_season)
+
+average_days <- survivalists |>
+  group_by(result) |>
+  summarize(average_days_lasted = mean(days_lasted))
+
+ggplot() +
+  geom_line(data = season_days, aes(x = result, y = days_lasted), 
+            color = "blue", size = 1) +
+  geom_point(data = season_days, aes(x = result, y = days_lasted), 
+             color = "blue", size = 2.5) + 
+  geom_line(data = average_days, aes(x = result, y = average_days_lasted), 
+            color = "red", size = 1) +
+  geom_point(data = average_days, aes(x = result, y = average_days_lasted), 
+             color = "red", size = 2.5) +
+  labs(
+    title = "Average Days Series vs Season Season 7",
+    x = "Placement",
+    y = "Days Lasted") +
+  theme_minimal()
+```
+
+Season eight had the most fluctuation between the average days lasted in the season and the series average. The 10th-place finisher matched the series average precisely. The ninth and eighth-place contestants both surpassed the series average, while seventh and sixth-place participants were below it. Positions from fifth through third were all above the series average, with a noticeable increase, while the second-place finisher was just barely above average. The first-place winner, however, fell slightly below average. This created three points where the season's trend crossed with the series average. In terms of age distribution, season eight returned to a more typical spread. What was notable, though, was that younger contestants performed better than usual, with the general trend being that the younger they were, the longer they lasted. This pattern held true, except for the winner, who was 40 years old. 
+
+```{r}
+#| echo: false
+
+filtered_season <- 8
+
+days_df <- survivalists |>
+  filter(season == filtered_season) |>
+  mutate(won = ifelse(result == 1, TRUE, FALSE)) |>
+  select(days_lasted, age, won)
+
+ggplot(days_df, aes(x = days_lasted, y = age, color = won)) +
+  geom_point(size = 3) + 
+  labs(
+    title = "Age vs. Days Season 8",
+    x = "Age",
+    y = "Days Lasted",
+    color = "Won"
+  ) +
+  scale_color_manual(values = c("red", "blue")) +  
+  theme_minimal() 
+
+season_days <- survivalists |>
+  filter(season == filtered_season)
+
+average_days <- survivalists |>
+  group_by(result) |>
+  summarize(average_days_lasted = mean(days_lasted))
+
+ggplot() +
+  geom_line(data = season_days, aes(x = result, y = days_lasted), 
+            color = "blue", size = 1) +
+  geom_point(data = season_days, aes(x = result, y = days_lasted), 
+             color = "blue", size = 2.5) + 
+  geom_line(data = average_days, aes(x = result, y = average_days_lasted), 
+            color = "red", size = 1) +
+  geom_point(data = average_days, aes(x = result, y = average_days_lasted), 
+             color = "red", size = 2.5) +
+  labs(
+    title = "Average Days Series vs Season Season 8",
+    x = "Placement",
+    y = "Days Lasted") +
+  theme_minimal()
+```
+
+Season nine is the most recent season, and it's the second time that the entire "days lasted" chart remained above the series average. Although the margin isn't as wide as in season seven, it's still significantly above the series average. This trend might indicate that contestants are becoming more experienced or better prepared over time, leading to increased average survival times compared to earlier seasons. The data continues to support this idea that age has a minimal impact on success in the competition. The age of the last-place finisher in season eight matched that of the second-place finisher in season nine, demonstrating that age isn't a defining factor in how well a contestant performs. In this season, the winner was 30 years old, while the runner-up was almost 60. Overall, season nine highlights the steady increase in survival times, reflecting an evolution in contestant preparation and skill. The varied ages of top performers across the series challenged my ideas about age-related success, showing that individuals from a broad range of age groups can excel in the competition.
+
+```{r}
+#| echo: false
+
+filtered_season <- 9
+
+days_df <- survivalists |>
+  filter(season == filtered_season) |>
+  mutate(won = ifelse(result == 1, TRUE, FALSE)) |>
+  select(days_lasted, age, won)
+
+ggplot(days_df, aes(x = days_lasted, y = age, color = won)) +
+  geom_point(size = 3) + 
+  labs(
+    title = "Age vs. Days Season 9",
+    x = "Age",
+    y = "Days Lasted",
+    color = "Won"
+  ) +
+  scale_color_manual(values = c("red", "blue")) +  
+  theme_minimal() 
+
+season_days <- survivalists |>
+  filter(season == filtered_season)
+
+average_days <- survivalists |>
+  group_by(result) |>
+  summarize(average_days_lasted = mean(days_lasted))
+
+ggplot() +
+  geom_line(data = season_days, aes(x = result, y = days_lasted), 
+            color = "blue", size = 1) +
+  geom_point(data = season_days, aes(x = result, y = days_lasted), 
+             color = "blue", size = 2.5) + 
+  geom_line(data = average_days, aes(x = result, y = average_days_lasted), 
+            color = "red", size = 1) +
+  geom_point(data = average_days, aes(x = result, y = average_days_lasted), 
+             color = "red", size = 2.5) +
+  labs(
+    title = "Average Days Series vs Season Season 9",
+    x = "Placement",
+    y = "Days Lasted") +
+  theme_minimal()
+```
+
+# Conclusion
+
+The most interesting dataset to me was the "Loadout" dataset, which revealed the evolving choices contestants made regarding the items they brought for survival. It was fascinating to see how, over time, the contestants narrowed their choices down to a consistent set of 10 items that were most likely to lead to success. I was surprised to find that age played a minimal role in a contestant's success, with only a slight trend toward younger contestants being less successful. However, with more data on younger participants, I suspect that this trend would have evened out, showing a broader range of success across all age groups. I was also pleased to find that the average number of days each placement lasted increased steadily over the seasons, a trend that was clearly visible in my analysis.
+
+Reflecting on potential mistakes or missed opportunities, season four highlighted that location might play a role in the items contestants chose to bring. This season had a noticeable absence of sleeping bags and fire starters, suggesting that the location might have been warmer or drier, making it easier to start fires and less likely to require additional warmth. I also think it would have been useful to include specific ages and survival durations in my age plot, providing more insights into each contestant's experience. While I didn't use the "Episodes" dataset, it could be valuable for future analyses, particularly if I wanted to explore ratings or the show's popularity. Although this dataset wasn't relevant to my exploration of what made someone more or less successful at surviving

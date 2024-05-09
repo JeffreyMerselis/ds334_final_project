@@ -1,0 +1,333 @@
+---
+title: "testdoc"
+format: html
+editor: visual
+---
+
+```{r}
+library(shiny)
+library(ggplot)
+library(DT)
+library(dplyr)
+library(readr)
+
+survivalists <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/survivalists.csv')
+loadouts <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/loadouts.csv')
+episodes <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/episodes.csv')
+seasons <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-01-24/seasons.csv')
+```
+
+# COMBO SHINY 
+
+```{r}
+ui <- fluidPage(
+  titlePanel("Visualising Data From 'Alone'"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("season", label = "Select a Season:", 
+                  choices = seasons$season |> unique(), 
+                  selected = 1
+      )  
+    ),
+    mainPanel(
+      tabsetPanel(
+        tabPanel("Survivalists",
+          fluidRow(
+            column(6, plotOutput("days_static_plot")),
+            column(12, plotOutput("days_reactive_plot"))
+          )
+        ),
+        tabPanel("Loadouts",
+          fluidRow(
+            plotOutput("items_plot")
+          )
+        ),
+        tabPanel("Seasons",
+          fluidRow(
+            plotOutput("season_series_plot")
+          )
+        ),
+        tabPanel("Comparisons",
+          fluidRow(
+            column(6, plotOutput("days_vs_viewers_plot")),  
+            column(6, plotOutput("top_items_plot"))  
+          )
+        )
+      )
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  
+  
+##------Winner Items Plot-------------------------------------------------------  
+  winner_reactive <- reactive({
+    survivalists |>
+      filter(season == input$season, result == 1) |>
+      select(name) |>
+      pull()
+  })
+  
+  winner_items_reactive <- reactive({
+    winner_items <- loadouts |>
+      filter(season == input$season, name == winner) |>
+      select(item) |>
+      pull()
+  })
+  
+  unique_loadouts_reactive <- reactive({
+    unique_loadouts <- loadouts |>
+      filter(season == input$season) |>
+      distinct(name, item)
+  })
+  
+  other_items_count_reactive <- reactive({
+    other_items_count <- unique_loadouts_reactive() |>
+      group_by(item) |>
+      summarize(count = n()) |>
+      mutate(
+        brought_by_winner = item %in% winner_items,
+        color = ifelse(brought_by_winner, "blue", "red")
+      ) |>
+      arrange(desc(count)) |>
+      mutate(item = fct_reorder(item, count))
+  })
+  
+  output$items_plot <- renderPlot({
+    ggplot(other_items_count_reactive()) +
+      geom_segment(aes(
+        x = item,
+        y = count,
+        xend = item,
+        yend = 0,
+        color = brought_by_winner
+      )) +
+      geom_point(aes(x = item, y = count, color = brought_by_winner)) +
+      scale_color_manual(values = c("TRUE" = "blue", "FALSE" = "red")) +
+      theme_minimal() +
+      scale_y_continuous(breaks = seq(0, max(other_items_count$count), by = 2)) + #GPT
+      coord_flip() +
+      labs(
+        title = "Number of Contestants Who Also Brought the 'Winning' Items",
+        x = "Item",
+        y = "Count",
+        color = "Brought by Winner"
+      )
+  })
+##------Winner Items Plot-------------------------------------------------------  
+
+##------Season Days VS Series Days Plot-----------------------------------------
+  season_days_reactive <- reactive({
+    season_days <- survivalists |>
+      filter(season == input$season)
+  })
+  
+  average_days <- survivalists |>
+    group_by(result) |>
+    summarize(average_days_lasted = mean(days_lasted))
+  
+  output$season_series_plot <- renderPlot({
+    ggplot() +
+      geom_line(
+        data = season_days_reactive(),
+        aes(x = result, y = days_lasted),
+        color = "blue",
+        size = 1
+      ) +
+      geom_point(
+        data = season_days_reactive(),
+        aes(x = result, y = days_lasted),
+        color = "blue",
+        size = 2.5
+      ) +
+      geom_line(
+        data = average_days,
+        aes(x = result, y = average_days_lasted),
+        color = "red",
+        size = 1
+      ) +
+      geom_point(
+        data = average_days,
+        aes(x = result, y = average_days_lasted),
+        color = "red",
+        size = 2.5
+      ) +
+      labs(title = "Average Days Series vs Season",
+           x = "Placement",
+           y = "Days Lasted") +
+      theme_minimal()
+  })
+##------Season Days VS Series Days Plot-----------------------------------------
+  
+##------Days VS Age Plot--------------------------------------------------------
+  days_reactive <- reactive({
+    days <- survivalists |>
+      filter(season == input$season) |>
+      mutate(won = ifelse(result == 1, TRUE, FALSE)) |>
+      select(days_lasted, age, won)
+  })
+  
+  days_static <- survivalists |>
+    mutate(won = ifelse(result == 1, TRUE, FALSE)) |>
+    select(days_lasted, age, won)
+  
+  output$days_static_plot <- renderPlot({
+    ggplot(days_reactive(), aes(x = age, y = days_lasted, color = won)) +
+      geom_point(size = 3) +
+      labs(
+        title = "Age vs. Days Reactive",
+        x = "Age",
+        y = "Days Lasted",
+        color = "Won"
+      ) +
+      scale_color_manual(values = c("red", "blue")) +
+      theme_minimal()
+  })
+  
+  output$days_reactive_plot <- renderPlot({
+    ggplot(days_static, aes(x = age, y = days_lasted, color = won)) +
+      geom_point(size = 3) +
+      labs(
+        title = "Age vs. Days Still",
+        x = "Age",
+        y = "Days Lasted",
+        color = "Won"
+      ) +
+      scale_color_manual(values = c("red", "blue")) +
+      theme_minimal()
+  })
+##------Days VS Age Plot--------------------------------------------------------
+
+}
+
+shinyApp(ui = ui, server = server)
+```
+
+
+# TABS SHINY
+
+```{r}
+ui <- fluidPage(
+  titlePanel("Visualising 'Alone' Data"),
+  tabsetPanel(
+    tabPanel("Survivalists",
+      fluidRow(
+        
+      )
+    ),
+    tabPanel("Loadouts",
+      fluidRow(
+        
+      )
+    ),
+    tabPanel("Episodes",
+      fluidRow(
+        
+      )
+    ),
+    tabPanel("Comparisons",
+      fluidRow(
+        
+      )
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  
+}
+
+shinyApp(ui = ui, server = server)
+
+```
+
+# SIDEBAR SHINY
+
+```{r}
+season_info_names <- c("Location", "Country", "Survivors", "Latitude", "Longitude", "Drop off Date")
+
+episode_info_names <- c("Episode Number", "Episode Title", "Air Date", "Overall Episode Number")
+
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("season", label = "Select a Season:",
+                  choices = seasons$season |> unique()
+      )
+    ),
+    mainPanel(
+      plotOutput("items_plot"),
+      dataTableOutput("season_info_table"),
+      dataTableOutput("survivalists_table"),
+      dataTableOutput("episodes_table")
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  
+  output$season_info_table <- renderDataTable({
+    seasons |>
+      filter(season == input$season) |>
+      select(-version, -season) |>
+      rename_with(~season_info_names, everything())
+  })
+  
+  output$survivalists_table <- renderDataTable({
+    survivalists_info_df |>
+      filter(season == input$season) |>
+      mutate(`Day Linked Up` = ifelse(season != 4, "Exclusive to season 4.", `Day Linked Up`)) |>
+      mutate(Team = ifelse(season != 4, "Exclusive to season 4.", Team)) |>
+      select(-season)
+  })
+
+  output$episodes_table <- renderDataTable({
+    episodes |>
+      filter(season == input$season) |>
+      select(-viewers, -version, -season, -quote, -author, -imdb_rating, -n_ratings) |>
+      select(episode, title, air_date, episode_number_overall) |>
+      rename_with(~episode_info_names, everything())
+  })
+## ITEMS PLOT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  
+  winners_reactive <- reactive({
+    winners_loadouts <- results_loadouts |>
+      filter(season == input$season) |>
+      filter(result == 1) |>
+      select(item)
+  })
+  
+  count_reactive <- reactive({
+    count_loadout <- results_loadouts |>
+      filter(season == input$season) |>
+      group_by(item) |>
+      summarise(count = n())
+  })
+  
+  win_count_items_reactive <- reactive({
+    winning_items_count <- inner_join(count_reactive(), winners_reactive(), by = c("item" = "item")) |>
+      arrange(desc(count)) |>
+      mutate(item = fct_reorder(item, count)) 
+  })
+  
+  output$items_plot <- renderPlot({
+    ggplot() +
+      geom_segment(data = win_count_items_reactive(), 
+                   aes(x = item, y = count, xend = item, yend = 0, color = "blue")) +
+      geom_point(data = win_count_items_reactive(), 
+                 aes(x = item, y = count, color = "blue")) + 
+      theme_minimal() +
+      coord_flip() +
+      labs(title = "Number of Contestants Who Also Brought the 'Winning' Items",
+           subtitle = "*Items in Red Were NOT Brought by the Winner",
+           x = "Item",
+           y = "Count") +
+      guides(color = "none")
+  })
+## ITEMS PLOT ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
+}
+
+shinyApp(ui, server)
+```
+
